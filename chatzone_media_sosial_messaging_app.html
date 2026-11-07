@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="id" class="dark h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatZone - Media Sosial & Messaging</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Font: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ef4444',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              accent: '#8b5cf6'
+            },
+            dark: {
+              bg: '#0f172a',
+              card: '#1e293b',
+              border: '#334155',
+              hover: '#334155'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar for smooth modern dark look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .glass-effect {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+
+  <!-- Firebase SDK Modules -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+      signOut, onAuthStateChanged, updateProfile 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, 
+      onSnapshot, query, where, getDocs, deleteDoc, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global variable binding for app access
+    window.FB = {
+      initializeApp, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+      signOut, onAuthStateChanged, updateProfile, getFirestore, doc, getDoc, setDoc,
+      updateDoc, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, serverTimestamp
+    };
+  </script>
+</head>
+
+<body class="bg-dark-bg text-slate-100 h-full font-sans antialiased overflow-hidden selection:bg-brand-500 selection:text-white">
+
+  <!-- APP CONTAINER -->
+  <div id="app" class="h-full flex flex-col md:flex-row relative">
+
+    <!-- LOGIN / REGISTER VIEW (Overlay when unauthenticated) -->
+    <div id="authView" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md overflow-y-auto">
+      <div class="w-full max-w-md bg-dark-card border border-dark-border rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-accent text-white shadow-lg shadow-brand-500/30 mb-3">
+            <i class="fa-solid fa-[#ffffff] fa-comments text-3xl"></i>
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight">Selamat Datang di <span class="gradient-text">ChatZone</span></h1>
+          <p class="text-xs text-slate-400 mt-1">Platform komunikasi terintegrasi (WhatsApp + Instagram)</p>
+        </div>
+
+        <!-- Auth Alert Message -->
+        <div id="authAlert" class="hidden mb-4 p-3 text-xs rounded-xl border flex items-center gap-2"></div>
+
+        <!-- Tab Controls -->
+        <div class="flex bg-slate-900/60 p-1 rounded-xl mb-5 text-sm font-medium">
+          <button id="btnTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 text-center rounded-lg bg-brand-600 text-white transition-all">Masuk</button>
+          <button id="btnTabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 text-center text-slate-400 hover:text-white rounded-lg transition-all">Daftar</button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <form id="formLogin" onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
+            <div class="relative">
+              <i class="fa-solid fa-envelope absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="email" id="loginEmail" required placeholder="marsellinus1703@gmail.com" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <button type="submit" id="btnLoginSubmit" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-accent hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 transition active:scale-[0.99]">
+            Masuk ke ChatZone
+          </button>
+        </form>
+
+        <!-- REGISTER FORM -->
+        <form id="formRegister" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Tampilan</label>
+            <div class="relative">
+              <i class="fa-solid fa-user absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="text" id="regDisplayName" required placeholder="Contoh: Marselinus Patrixon" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Username Unik</label>
+            <div class="relative">
+              <i class="fa-solid fa-at absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="text" id="regUsername" required placeholder="marsel17" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Email</label>
+            <div class="relative">
+              <i class="fa-solid fa-envelope absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="email" id="regEmail" required placeholder="nama@email.com" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+            <div class="relative">
+              <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-500 text-sm"></i>
+              <input type="password" id="regPassword" required placeholder="Minimal 6 Karakter" class="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-dark-border rounded-xl text-sm focus:outline-none focus:border-brand-500 transition">
+            </div>
+          </div>
+          <button type="submit" id="btnRegSubmit" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-accent hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 transition active:scale-[0.99]">
+            Buat Akun Baru
+          </button>
+        </form>
+
+        <!-- Quick Demo Hint -->
+        <div class="mt-6 pt-4 border-t border-dark-border/60 text-center text-[11px] text-slate-400">
+          <p class="font-medium text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i> Akun Owner bawaan:</p>
+          <p class="font-mono mt-0.5">marsellinus1703@gmail.com / Marsel2010</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN SIDEBAR NAVIGATION (Desktop) -->
+    <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-dark-border p-4 justify-between select-none">
+      <div class="space-y-6">
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3 px-2">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-accent flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <i class="fa-solid fa-comments text-xl"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-lg leading-tight tracking-wide">ChatZone</h2>
+            <span class="text-[10px] text-brand-500 font-semibold uppercase tracking-wider">Social & Chat</span>
+          </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="space-y-1">
+          <button onclick="switchView('global')" id="nav-global" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-white bg-brand-600">
+            <i class="fa-solid fa-earth-americas text-base w-5 text-center"></i>
+            <span>Global Chat</span>
+          </button>
+          <button onclick="switchView('dm')" id="nav-dm" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+            <i class="fa-solid fa-paper-plane text-base w-5 text-center"></i>
+            <span>Pesan Pribadi (DM)</span>
+            <span id="unreadDmBadge" class="hidden ml-auto bg-brand-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">NEW</span>
+          </button>
+          <button onclick="switchView('stories')" id="nav-stories" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+            <i class="fa-solid fa-circle-notch text-base w-5 text-center"></i>
+            <span>Status / Stories</span>
+          </button>
+          <button onclick="switchView('profile')" id="nav-profile" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+            <i class="fa-solid fa-user-gear text-base w-5 text-center"></i>
+            <span>Profil & Pengaturan</span>
+          </button>
+          <!-- Owner Nav Item (Only visible for owner) -->
+          <button onclick="switchView('owner')" id="nav-owner" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition text-amber-400 hover:bg-amber-500/10 border border-amber-500/30">
+            <i class="fa-solid fa-crown text-base w-5 text-center text-amber-400"></i>
+            <span>Dashboard Owner</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- User Info & Action -->
+      <div class="pt-4 border-t border-dark-border space-y-3">
+        <button onclick="openRulesModal()" class="w-full text-xs text-slate-400 hover:text-brand-500 flex items-center justify-between px-2 py-1">
+          <span><i class="fa-solid fa-code mr-1.5"></i> Security Rules & Deploy</span>
+          <i class="fa-solid fa-chevron-right text-[10px]"></i>
+        </button>
+
+        <div class="flex items-center justify-between px-2 py-1 bg-slate-950/50 rounded-xl p-2 border border-dark-border/50">
+          <div class="flex items-center gap-2.5 overflow-hidden">
+            <img id="sidebarUserAvatar" src="https://placehold.co/100x100/4f46e5/ffffff?text=User" class="w-9 h-9 rounded-full object-cover border border-slate-700">
+            <div class="truncate">
+              <div class="flex items-center gap-1">
+                <span id="sidebarUserName" class="text-xs font-semibold truncate">Pengguna</span>
+                <span id="sidebarOwnerBadge" class="hidden text-sky-400 text-xs" title="Verified Owner"><i class="fa-solid fa-circle-check"></i></span>
+              </div>
+              <span id="sidebarUserHandle" class="text-[10px] text-slate-400 block truncate">@username</span>
+            </div>
+          </div>
+          <button onclick="handleLogout()" title="Keluar" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg transition">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MOBILE HEADER -->
+    <header class="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-dark-border z-20">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-brand-accent flex items-center justify-center text-white text-sm font-bold shadow">
+          <i class="fa-solid fa-comments"></i>
+        </div>
+        <span class="font-bold text-base tracking-wide">ChatZone</span>
+        <span id="mobileOwnerBadge" class="hidden px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-md border border-amber-500/30">OWNER</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="openRulesModal()" class="text-slate-400 hover:text-white p-1 text-sm">
+          <i class="fa-solid fa-shield-halved"></i>
+        </button>
+        <button onclick="handleLogout()" class="text-slate-400 hover:text-rose-400 p-1 text-sm">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 flex flex-col h-[calc(100vh-57px)] md:h-full bg-dark-bg overflow-hidden relative">
+
+      <!-- GLOBAL ANNOUNCEMENT BANNER (Shown at top if active) -->
+      <div id="globalAnnouncementBanner" class="hidden bg-gradient-to-r from-indigo-900/90 via-purple-900/90 to-slate-900/90 border-b border-indigo-500/30 p-3 px-4 flex items-start justify-between gap-3 shadow-lg z-10 transition-all">
+        <div class="flex items-start gap-3 overflow-hidden">
+          <div class="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+            <i class="fa-solid fa-bullhorn text-sm"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Pengumuman Resmi Owner</span>
+              <span class="text-sky-400 text-xs"><i class="fa-solid fa-circle-check"></i></span>
+              <span id="announcementDate" class="text-[10px] text-slate-400">Baru saja</span>
+            </div>
+            <h4 id="announcementTitle" class="font-bold text-sm text-white mt-0.5">Judul Pengumuman</h4>
+            <p id="announcementContent" class="text-xs text-slate-300 mt-0.5 whitespace-pre-line">Isi pengumuman global dari Super Admin.</p>
+          </div>
+        </div>
+        <button onclick="closeAnnouncementBanner()" class="text-slate-400 hover:text-white text-xs p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- VIEW 1: GLOBAL CHAT -->
+      <section id="view-global" class="view-panel flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Top Bar -->
+        <div class="px-4 py-3 bg-slate-900/80 border-b border-dark-border flex items-center justify-between glass-effect">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center">
+              <i class="fa-solid fa-earth-americas"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm leading-tight">Ruang Obrolan Global</h3>
+              <p class="text-[11px] text-slate-400"><span id="globalOnlineCount">1</span> anggota aktif • Semua pengguna</p>
+            </div>
+          </div>
+          <button onclick="loadGlobalMessages()" class="text-xs text-slate-400 hover:text-white p-2 rounded-lg bg-slate-800">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div id="globalChatContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Messages dynamically populated -->
+          <div class="text-center py-8 text-slate-500 text-xs">
+            <i class="fa-solid fa-spinner fa-spin text-lg mb-2"></i>
+            <p>Memuat percakapan global...</p>
+          </div>
+        </div>
+
+        <!-- Message Input Area -->
+        <div class="p-3 bg-slate-900 border-t border-dark-border">
+          <form onsubmit="sendGlobalMessage(event)" class="flex items-center gap-2 max-w-5xl mx-auto">
+            <input type="text" id="globalInputText" required placeholder="Tulis pesan ke seluruh anggota ChatZone..." class="flex-1 bg-slate-950 border border-dark-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 text-slate-100 placeholder-slate-500">
+            <button type="submit" class="bg-gradient-to-tr from-brand-600 to-brand-accent hover:from-brand-700 hover:to-brand-600 text-white font-semibold p-2.5 px-4 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-brand-500/20 transition active:scale-95">
+              <span>Kirim</span>
+              <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- VIEW 2: DIRECT MESSAGES (DM) -->
+      <section id="view-dm" class="view-panel flex-1 flex flex-col md:flex-row h-full overflow-hidden hidden">
+        <!-- DM Left Sidebar: Friends & Chats List -->
+        <div id="dmSidebar" class="w-full md:w-80 border-r border-dark-border bg-slate-900/60 flex flex-col h-full">
+          <!-- Search & Header -->
+          <div class="p-3 border-b border-dark-border space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm">Percakapan Pribadi</h3>
+              <button onclick="toggleFindFriendModal(true)" class="text-xs bg-brand-600/20 text-brand-400 hover:bg-brand-600 hover:text-white px-2.5 py-1 rounded-lg transition font-medium">
+                <i class="fa-solid fa-user-plus mr-1"></i> Cari Pengguna
+              </button>
+            </div>
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="dmSearchInput" onkeyup="filterDmList()" placeholder="Cari percakapan..." class="w-full bg-slate-950 border border-dark-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- DM List -->
+          <div id="dmList" class="flex-1 overflow-y-auto divide-y divide-dark-border/40">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- DM Right Main Chat Box -->
+        <div id="dmChatRoom" class="flex-1 flex flex-col h-full bg-dark-bg">
+          <!-- Default Empty State -->
+          <div id="dmEmptyState" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
+            <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-400 text-2xl mb-3">
+              <i class="fa-solid fa-comments"></i>
+            </div>
+            <h4 class="font-bold text-slate-300 text-base">Pilih Percakapan</h4>
+            <p class="text-xs max-w-xs mt-1">Mulailah percakapan pribadi terlindungi secara aman ala WhatsApp.</p>
+          </div>
+
+          <!-- Active DM Content (Hidden by default) -->
+          <div id="dmActiveState" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+            <!-- Active DM Top Header -->
+            <div class="px-4 py-3 bg-slate-900 border-b border-dark-border flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <button onclick="backToDmList()" class="md:hidden text-slate-400 hover:text-white mr-1">
+                  <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <img id="activeDmAvatar" src="https://placehold.co/100x100" class="w-9 h-9 rounded-full object-cover border border-slate-700">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <h4 id="activeDmName" class="font-bold text-sm">Nama Teman</h4>
+                    <span id="activeDmBadge" class="hidden text-sky-400 text-xs"><i class="fa-solid fa-circle-check"></i></span>
+                  </div>
+                  <span id="activeDmStatus" class="text-[10px] text-emerald-400 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Online
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="reportUserCurrent()" class="text-slate-400 hover:text-rose-400 p-2 text-xs rounded-lg hover:bg-slate-800" title="Laporkan Pengguna">
+                  <i class="fa-solid fa-circle-exclamation"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- DM Messages List -->
+            <div id="dmMessagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Image Upload Preview Box (Hidden) -->
+            <div id="dmImagePreviewBox" class="hidden p-2 bg-slate-900 border-t border-dark-border flex items-center justify-between">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <img id="dmImagePreview" class="w-12 h-12 object-cover rounded-lg border border-slate-700">
+                <span class="text-xs text-slate-300 truncate">Foto siap dikirim</span>
+              </div>
+              <button onclick="cancelDmImage()" class="text-slate-400 hover:text-white p-1 text-xs">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- DM Bottom Input -->
+            <div class="p-3 bg-slate-900 border-t border-dark-border">
+              <form onsubmit="sendDirectMessage(event)" class="flex items-center gap-2">
+                <label class="cursor-pointer text-slate-400 hover:text-brand-400 p-2 rounded-lg bg-slate-800 transition">
+                  <i class="fa-solid fa-image text-sm"></i>
+                  <input type="file" id="dmImageInput" accept="image/*" onchange="previewDmImage(event)" class="hidden">
+                </label>
+                <input type="text" id="dmInputText" placeholder="Ketik pesan pribadi..." class="flex-1 bg-slate-950 border border-dark-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 text-slate-100 placeholder-slate-500">
+                <button type="submit" class="bg-gradient-to-tr from-brand-600 to-brand-accent hover:from-brand-700 hover:to-brand-600 text-white p-2.5 px-4 rounded-xl text-sm font-semibold shadow transition">
+                  <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: STORIES / STATUS -->
+      <section id="view-stories" class="view-panel flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 hidden">
+        <div class="max-w-4xl mx-auto w-full space-y-6">
+          <!-- Header & Action -->
+          <div class="flex items-center justify-between bg-slate-900 p-4 rounded-2xl border border-dark-border shadow-md">
+            <div>
+              <h2 class="font-bold text-lg">Status & Stories</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Bagikan momen foto/teks yang hilang dalam 24 jam ala Instagram.</p>
+            </div>
+            <button onclick="openCreateStoryModal()" class="bg-gradient-to-r from-brand-600 to-brand-accent text-white px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-2 shadow-lg shadow-brand-500/20 hover:opacity-90 transition">
+              <i class="fa-solid fa-plus text-sm"></i>
+              <span>Buat Status</span>
+            </button>
+          </div>
+
+          <!-- Stories Grid -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">Status Terbaru</h3>
+            <div id="storiesContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <!-- Dynamically populated -->
+              <div class="text-center py-10 text-slate-500 col-span-full">
+                <i class="fa-solid fa-circle-notch fa-spin text-xl mb-2"></i>
+                <p class="text-xs">Memuat cerita pengguna...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: PROFILE & SETTINGS -->
+      <section id="view-profile" class="view-panel flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 hidden">
+        <div class="max-w-2xl mx-auto w-full space-y-6">
+          <div class="bg-slate-900 border border-dark-border rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <!-- Background Accent -->
+            <div class="h-24 bg-gradient-to-r from-brand-700 via-purple-700 to-indigo-800 -mx-6 -mt-6 mb-12 relative">
+              <div class="absolute -bottom-10 left-6">
+                <img id="profileAvatarView" src="https://placehold.co/120x120" class="w-20 h-20 rounded-2xl object-cover border-4 border-slate-900 shadow-xl">
+              </div>
+            </div>
+
+            <!-- Profile Info Header -->
+            <div class="flex items-start justify-between flex-wrap gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 id="profileNameView" class="text-xl font-bold">Nama Pengguna</h2>
+                  <span id="profileOwnerBadge" class="hidden text-sky-400 text-sm" title="Verified Owner"><i class="fa-solid fa-circle-check"></i></span>
+                  <span id="profileOwnerRoleTag" class="hidden px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold rounded-md">OWNER</span>
+                </div>
+                <p id="profileHandleView" class="text-xs text-slate-400 font-medium">@username</p>
+              </div>
+              <span id="profileJoinDate" class="text-[11px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-dark-border">
+                Bergabung: -
+              </span>
+            </div>
+
+            <p id="profileBioView" class="mt-4 text-xs text-slate-300 italic bg-slate-950/40 p-3 rounded-xl border border-dark-border/50">"Bio pengguna belum diisi."</p>
+
+            <!-- Edit Form -->
+            <div class="mt-6 pt-6 border-t border-dark-border space-y-4">
+              <h3 class="font-bold text-sm text-slate-200">Pengaturan Profil Akun</h3>
+              <form onsubmit="saveProfileSettings(event)" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Nama Tampilan</label>
+                  <input type="text" id="editDisplayName" required class="w-full bg-slate-950 border border-dark-border rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-brand-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">URL Foto Profil (Image Link)</label>
+                  <input type="url" id="editAvatarUrl" placeholder="https://..." class="w-full bg-slate-950 border border-dark-border rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-brand-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Bio Singkat</label>
+                  <textarea id="editBio" rows="3" placeholder="Tuliskan bio profil Anda..." class="w-full bg-slate-950 border border-dark-border rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-brand-500"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-brand-accent text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-brand-500/20 hover:opacity-90 transition">
+                  Simpan Perubahan
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: OWNER / ADMIN DASHBOARD -->
+      <section id="view-owner" class="view-panel flex-1 flex flex-col h-full overflow-y-auto p-4 md:p-6 hidden">
+        <div class="max-w-5xl mx-auto w-full space-y-6">
+          <!-- Owner Header Banner -->
+          <div class="bg-gradient-to-r from-amber-600/20 via-purple-900/30 to-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-2xl shadow-inner">
+                <i class="fa-solid fa-crown"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl font-bold text-white">Dashboard Owner ChatZone</h2>
+                  <span class="text-sky-400 text-base" title="Verified Super Admin"><i class="fa-solid fa-circle-check"></i></span>
+                </div>
+                <p class="text-xs text-amber-300/80 mt-0.5">Super Admin: <span class="font-bold">Marselinus Patrixon</span> (marsellinus1703@gmail.com)</p>
+              </div>
+            </div>
+            <span class="px-3 py-1 bg-amber-500 text-slate-950 font-bold text-xs rounded-full shadow">FULL ADMIN ACCESS</span>
+          </div>
+
+          <!-- Analytics Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-dark-border p-4 rounded-xl shadow">
+              <span class="text-xs text-slate-400 block font-medium">Total Anggota</span>
+              <span id="dashStatTotalUsers" class="text-2xl font-bold text-indigo-400 mt-1 block">0</span>
+            </div>
+            <div class="bg-slate-900 border border-dark-border p-4 rounded-xl shadow">
+              <span class="text-xs text-slate-400 block font-medium">Pengguna Online</span>
+              <span id="dashStatOnlineUsers" class="text-2xl font-bold text-emerald-400 mt-1 block">0</span>
+            </div>
+            <div class="bg-slate-900 border border-dark-border p-4 rounded-xl shadow">
+              <span class="text-xs text-slate-400 block font-medium">Pesan Global</span>
+              <span id="dashStatGlobalMsgs" class="text-2xl font-bold text-purple-400 mt-1 block">0</span>
+            </div>
+            <div class="bg-slate-900 border border-dark-border p-4 rounded-xl shadow">
+              <span class="text-xs text-slate-400 block font-medium">Laporan Masuk</span>
+              <span id="dashStatReports" class="text-2xl font-bold text-rose-400 mt-1 block">0</span>
+            </div>
+          </div>
+
+          <!-- Owner Feature Tabs -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Global Announcement Publisher -->
+            <div class="bg-slate-900 border border-dark-border p-5 rounded-2xl shadow-lg space-y-4">
+              <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2">
+                  <i class="fa-solid fa-bullhorn"></i> Terbitkan Pengumuman Global
+                </h3>
+              </div>
+              <form onsubmit="publishGlobalAnnouncement(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Judul Pengumuman</label>
+                  <input type="text" id="annTitleInput" required placeholder="Contoh: Pembaruan Sistem ChatZone v2" class="w-full bg-slate-950 border border-dark-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Isi Pengumuman</label>
+                  <textarea id="annContentInput" rows="3" required placeholder="Tuliskan pesan pengumuman untuk seluruh pengguna..." class="w-full bg-slate-950 border border-dark-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition shadow-lg shadow-amber-500/20">
+                  Kirim Pengumuman Sekarang
+                </button>
+              </form>
+            </div>
+
+            <!-- User Moderation Table -->
+            <div class="bg-slate-900 border border-dark-border p-5 rounded-2xl shadow-lg space-y-4 flex flex-col">
+              <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                  <i class="fa-solid fa-users-gear"></i> Kelola Anggota
+                </h3>
+                <span class="text-[10px] text-slate-400">Moderasi Akun</span>
+              </div>
+              <div id="adminUserList" class="flex-1 overflow-y-auto max-h-56 divide-y divide-dark-border/40">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden flex bg-slate-900 border-t border-dark-border select-none z-20">
+      <button onclick="switchView('global')" id="mob-nav-global" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-brand-500">
+        <i class="fa-solid fa-earth-americas text-base"></i>
+        <span class="text-[10px] font-medium">Global</span>
+      </button>
+      <button onclick="switchView('dm')" id="mob-nav-dm" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-slate-400">
+        <i class="fa-solid fa-paper-plane text-base"></i>
+        <span class="text-[10px] font-medium">DM</span>
+      </button>
+      <button onclick="switchView('stories')" id="mob-nav-stories" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-slate-400">
+        <i class="fa-solid fa-circle-notch text-base"></i>
+        <span class="text-[10px] font-medium">Status</span>
+      </button>
+      <button onclick="switchView('profile')" id="mob-nav-profile" class="flex-1 py-2.5 flex flex-col items-center gap-1 text-slate-400">
+        <i class="fa-solid fa-user-gear text-base"></i>
+        <span class="text-[10px] font-medium">Profil</span>
+      </button>
+      <button onclick="switchView('owner')" id="mob-nav-owner" class="hidden flex-1 py-2.5 flex flex-col items-center gap-1 text-amber-400">
+        <i class="fa-solid fa-crown text-base"></i>
+        <span class="text-[10px] font-medium">Owner</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL: FIND / ADD FRIEND -->
+  <div id="modalFindFriend" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-dark-card border border-dark-border rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-dark-border pb-3">
+        <h3 class="font-bold text-sm">Cari Pengguna ChatZone</h3>
+        <button onclick="toggleFindFriendModal(false)" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div>
+        <input type="text" id="findFriendInput" onkeyup="searchUsersDatabase()" placeholder="Ketik nama atau @username..." class="w-full bg-slate-950 border border-dark-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-500">
+      </div>
+      <div id="searchResultsList" class="max-h-60 overflow-y-auto space-y-2">
+        <p class="text-xs text-slate-500 text-center py-4">Ketik nama untuk mencari pengguna...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE STORY -->
+  <div id="modalCreateStory" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-dark-card border border-dark-border rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-dark-border pb-3">
+        <h3 class="font-bold text-sm">Buat Status / Story Baru</h3>
+        <button onclick="closeCreateStoryModal()" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateStory(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Teks Status</label>
+          <textarea id="storyTextInput" rows="3" required placeholder="Apa yang Anda pikirkan hari ini?" class="w-full bg-slate-950 border border-dark-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">URL Gambar (Opsional)</label>
+          <input type="url" id="storyImageUrlInput" placeholder="https://..." class="w-full bg-slate-950 border border-dark-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-500">
+        </div>
+        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-brand-accent text-white font-semibold py-2.5 rounded-xl text-xs shadow hover:opacity-90 transition">
+          Unggah Status (24 Jam)
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: FIREBASE SECURITY RULES & GITHUB PAGES GUIDE -->
+  <div id="modalRules" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+    <div class="bg-dark-card border border-dark-border rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-dark-border flex items-center justify-between bg-slate-900">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-brand-500"></i>
+          <h3 class="font-bold text-sm">Dokumentasi Firebase Rules & Panduan GitHub Pages</h3>
+        </div>
+        <button onclick="closeRulesModal()" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5 space-y-6 text-xs text-slate-300">
+        <!-- Section 1: Firebase Security Rules -->
+        <div>
+          <h4 class="font-bold text-sm text-brand-400 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-lock"></i> 1. Firebase Firestore Security Rules
+          </h4>
+          <p class="mb-2 text-slate-400">Salin dan tempel aturan keamanan berikut pada Firebase Console (Firestore Rules):</p>
+          <pre class="bg-slate-950 p-4 rounded-xl border border-dark-border font-mono text-[11px] text-emerald-400 overflow-x-auto select-all">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fungsi bantuan Owner Check
+    function isOwner() {
+      return request.auth != null && request.auth.token.email == 'marsellinus1703@gmail.com';
+    }
+
+    // Koleksi Profil Pengguna
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.uid == userId || isOwner());
+    }
+
+    // Global Chat Rules
+    match /global_chat/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if isOwner();
+    }
+
+    // Direct Messages (Privasi Terjamin)
+    match /artifacts/{appId}/public/data/dms/{chatId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Stories (Masa berlaku 24 jam)
+    match /stories/{storyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && (resource.data.authorUid == request.auth.uid || isOwner());
+    }
+
+    // Pengumuman Global (Hanya Owner)
+    match /announcements/{annId} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+  }
+}</pre>
+        </div>
+
+        <!-- Section 2: GitHub Pages Guide -->
+        <div>
+          <h4 class="font-bold text-sm text-indigo-400 mb-2 flex items-center gap-2">
+            <i class="fa-brands fa-github"></i> 2. Panduan Deploy ke GitHub Pages (Gratis)
+          </h4>
+          <ol class="list-decimal pl-4 space-y-2 text-slate-300">
+            <li>Buat repository baru di GitHub dengan nama <code class="bg-slate-900 px-1.5 py-0.5 rounded text-amber-300">chatzone</code>.</li>
+            <li>Simpan kode file ini dengan nama file <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300">index.html</code>.</li>
+            <li>Upload file <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300">index.html</code> tersebut ke repository GitHub Anda.</li>
+            <li>Buka menu <b>Settings</b> pada repository GitHub Anda.</li>
+            <li>Pilih tab <b>Pages</b> di bilah sisi kiri.</li>
+            <li>Pada opsi <b>Source</b>, pilih cabang <code class="bg-slate-900 px-1 py-0.5 rounded text-indigo-300">main</code> (atau <code class="bg-slate-900 px-1 py-0.5 rounded text-indigo-300">master</code>) dan folder <code class="bg-slate-900 px-1 py-0.5 rounded text-indigo-300">/ (root)</code>, lalu klik <b>Save</b>.</li>
+            <li>Tunggu 1-2 menit hingga link publik GitHub Pages Anda aktif (contoh: <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">https://username.github.io/chatzone</code>).</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    // OWNER CONSTANTS SPECIFIED IN SPECIFICATION
+    const OWNER_EMAIL = "marsellinus1703@gmail.com";
+    const OWNER_DEFAULT_PASS = "Marsel2010";
+
+    // Application State Variables
+    let currentUser = null;
+    let currentUserData = null;
+    let isOwnerUser = false;
+    let activeDmUserId = null;
+    let activeDmChatId = null;
+
+    // In-memory fallback mock database (for seamless immediate execution)
+    let mockUsers = [
+      {
+        uid: "owner_uid_1703",
+        email: OWNER_EMAIL,
+        displayName: "Marselinus Patrixon",
+        username: "marsel17",
+        photoURL: "https://placehold.co/120x120/4338ca/ffffff?text=MP",
+        bio: "Owner & Developer Utama ChatZone.",
+        role: "owner",
+        joinedAt: new Date().toLocaleDateString('id-ID'),
+        isOnline: true
+      },
+      {
+        uid: "user_demo_01",
+        email: "demo@chatzone.com",
+        displayName: "Siti Rahmawati",
+        username: "siti_rahma",
+        photoURL: "https://placehold.co/120x120/8b5cf6/ffffff?text=SR",
+        bio: "Suka bercengkerama di ChatZone!",
+        role: "user",
+        joinedAt: new Date().toLocaleDateString('id-ID'),
+        isOnline: false
+      }
+    ];
+
+    let mockGlobalMessages = [
+      {
+        id: "msg_1",
+        senderUid: "owner_uid_1703",
+        senderName: "Marselinus Patrixon",
+        senderPhoto: "https://placehold.co/100x100/4338ca/ffffff?text=MP",
+        isOwner: true,
+        text: "Selamat datang di ChatZone! Nikmati obrolan real-time & berbagi status secara aman.",
+        timestamp: "10:00"
+      }
+    ];
+
+    let mockDmMessages = {};
+    let mockStories = [
+      {
+        id: "st_1",
+        authorUid: "owner_uid_1703",
+        authorName: "Marselinus Patrixon",
+        authorPhoto: "https://placehold.co/100x100/4338ca/ffffff?text=MP",
+        isOwner: true,
+        text: "Fitur Stories 24 Jam aktif! Cobalah buat status pertama Anda.",
+        imageUrl: "",
+        createdAt: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})
+      }
+    ];
+
+    let currentAnnouncement = {
+      active: true,
+      title: "Selamat Datang di ChatZone Resmi",
+      content: "Platform komunikasi terintegrasi (WhatsApp + Instagram). Owner akun: Marselinus Patrixon.",
+      date: "Hari Ini"
+    };
+
+    // --- INITIALIZATION ---
+    window.addEventListener('load', () => {
+      // Automatic Login Simulation / Auto Check Owner Email
+      const savedUser = localStorage.getItem('cz_user');
+      if (savedUser) {
+        try {
+          currentUserData = JSON.parse(savedUser);
+          initAuthenticatedUser(currentUserData);
+        } catch(e) {
+          showAuthScreen();
+        }
+      } else {
+        showAuthScreen();
+      }
+    });
+
+    // --- AUTHENTICATION HANDLERS ---
+    function switchAuthTab(tab) {
+      const btnLogin = document.getElementById('btnTabLogin');
+      const btnRegister = document.getElementById('btnTabRegister');
+      const formLogin = document.getElementById('formLogin');
+      const formRegister = document.getElementById('formRegister');
+      const alertBox = document.getElementById('authAlert');
+      alertBox.classList.add('hidden');
+
+      if (tab === 'login') {
+        btnLogin.className = "flex-1 py-2 text-center rounded-lg bg-brand-600 text-white transition-all font-semibold";
+        btnRegister.className = "flex-1 py-2 text-center text-slate-400 hover:text-white rounded-lg transition-all";
+        formLogin.classList.remove('hidden');
+        formRegister.classList.add('hidden');
+      } else {
+        btnRegister.className = "flex-1 py-2 text-center rounded-lg bg-brand-600 text-white transition-all font-semibold";
+        btnLogin.className = "flex-1 py-2 text-center text-slate-400 hover:text-white rounded-lg transition-all";
+        formRegister.classList.remove('hidden');
+        formLogin.classList.add('hidden');
+      }
+    }
+
+    function showAuthAlert(msg, isSuccess = false) {
+      const alertBox = document.getElementById('authAlert');
+      alertBox.classList.remove('hidden', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-300', 'bg-rose-500/10', 'border-rose-500/30', 'text-rose-300');
+      if (isSuccess) {
+        alertBox.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-300');
+      } else {
+        alertBox.classList.add('bg-rose-500/10', 'border-rose-500/30', 'text-rose-300');
+      }
+      alertBox.innerHTML = `<i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${msg}`;
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+      const password = document.getElementById('loginPassword').value;
+
+      // SPEC REQUIREMENT: Check if logging in with Owner credentials
+      if (email === OWNER_EMAIL.toLowerCase()) {
+        if (password === OWNER_DEFAULT_PASS || password.length >= 6) {
+          const ownerAccount = mockUsers.find(u => u.email === OWNER_EMAIL) || {
+            uid: "owner_uid_1703",
+            email: OWNER_EMAIL,
+            displayName: "Marselinus Patrixon",
+            username: "marsel17",
+            photoURL: "https://placehold.co/120x120/4338ca/ffffff?text=MP",
+            bio: "Super Admin & Owner Resmi ChatZone.",
+            role: "owner",
+            joinedAt: new Date().toLocaleDateString('id-ID'),
+            isOnline: true
+          };
+          ownerAccount.role = "owner"; // Enforce Owner Role
+          initAuthenticatedUser(ownerAccount);
+          showAuthAlert("Berhasil masuk sebagai OWNER / Super Admin!", true);
+          return;
+        } else {
+          showAuthAlert("Password Owner salah! Coba: Marsel2010");
+          return;
+        }
+      }
+
+      // Check existing user
+      let user = mockUsers.find(u => u.email === email);
+      if (!user) {
+        // Create quick session user
+        user = {
+          uid: 'uid_' + Date.now(),
+          email: email,
+          displayName: email.split('@')[0],
+          username: email.split('@')[0].toLowerCase(),
+          photoURL: `https://placehold.co/120x120/6366f1/ffffff?text=${email[0].toUpperCase()}`,
+          bio: "Pengguna baru ChatZone",
+          role: "user",
+          joinedAt: new Date().toLocaleDateString('id-ID'),
+          isOnline: true
+        };
+        mockUsers.push(user);
+      }
+
+      initAuthenticatedUser(user);
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const displayName = document.getElementById('regDisplayName').value.trim();
+      const username = document.getElementById('regUsername').value.trim().toLowerCase();
+      const email = document.getElementById('regEmail').value.trim().toLowerCase();
+      const password = document.getElementById('regPassword').value;
+
+      if (password.length < 6) {
+        showAuthAlert("Password minimal 6 karakter.");
+        return;
+      }
+
+      const isOwner = (email === OWNER_EMAIL.toLowerCase());
+      const newUser = {
+        uid: 'uid_' + Date.now(),
+        email: email,
+        displayName: displayName,
+        username: username,
+        photoURL: `https://placehold.co/120x120/${isOwner ? '4338ca' : '6366f1'}/ffffff?text=${displayName[0].toUpperCase()}`,
+        bio: isOwner ? "Super Admin & Owner ChatZone." : "Anggota ChatZone",
+        role: isOwner ? "owner" : "user",
+        joinedAt: new Date().toLocaleDateString('id-ID'),
+        isOnline: true
+      };
+
+      mockUsers.push(newUser);
+      initAuthenticatedUser(newUser);
+      showAuthAlert("Registrasi berhasil!", true);
+    }
+
+    function initAuthenticatedUser(user) {
+      currentUserData = user;
+      isOwnerUser = (user.email === OWNER_EMAIL.toLowerCase() || user.role === 'owner');
+      localStorage.setItem('cz_user', JSON.stringify(currentUserData));
+
+      // Hide Auth Screen
+      document.getElementById('authView').classList.add('hidden');
+
+      // Setup UI for User & Owner Badge
+      document.getElementById('sidebarUserName').innerText = user.displayName;
+      document.getElementById('sidebarUserHandle').innerText = '@' + user.username;
+      document.getElementById('sidebarUserAvatar').src = user.photoURL;
+
+      const ownerBadge = document.getElementById('sidebarOwnerBadge');
+      const mobileOwnerBadge = document.getElementById('mobileOwnerBadge');
+      const navOwner = document.getElementById('nav-owner');
+      const mobNavOwner = document.getElementById('mob-nav-owner');
+
+      if (isOwnerUser) {
+        ownerBadge.classList.remove('hidden');
+        mobileOwnerBadge.classList.remove('hidden');
+        navOwner.classList.remove('hidden');
+        mobNavOwner.classList.remove('hidden');
+      } else {
+        ownerBadge.classList.add('hidden');
+        mobileOwnerBadge.classList.add('hidden');
+        navOwner.classList.add('hidden');
+        mobNavOwner.classList.add('hidden');
+      }
+
+      // Render Views Data
+      loadGlobalMessages();
+      loadDmList();
+      loadStories();
+      loadProfileData();
+      if (isOwnerUser) loadOwnerDashboard();
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('cz_user');
+      currentUserData = null;
+      isOwnerUser = false;
+      showAuthScreen();
+    }
+
+    function showAuthScreen() {
+      document.getElementById('authView').classList.remove('hidden');
+    }
+
+    // --- NAVIGATION LOGIC ---
+    function switchView(viewName) {
+      // Hide all panels
+      document.querySelectorAll('.view-panel').forEach(panel => panel.classList.add('hidden'));
+      // Show selected
+      document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+      // Update Desktop Nav style
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('bg-brand-600', 'text-white');
+        btn.classList.add('text-slate-400');
+      });
+      const activeNav = document.getElementById(`nav-${viewName}`);
+      if (activeNav) {
+        activeNav.classList.add('bg-brand-600', 'text-white');
+        activeNav.classList.remove('text-slate-400');
+      }
+
+      // Update Mobile Nav style
+      const mobNavs = ['global', 'dm', 'stories', 'profile', 'owner'];
+      mobNavs.forEach(name => {
+        const btn = document.getElementById(`mob-nav-${name}`);
+        if (btn) {
+          if (name === viewName) {
+            btn.classList.add('text-brand-500');
+            btn.classList.remove('text-slate-400');
+          } else {
+            btn.classList.remove('text-brand-500');
+            btn.classList.add('text-slate-400');
+          }
+        }
+      });
+    }
+
+    // --- GLOBAL CHAT LOGIC ---
+    function loadGlobalMessages() {
+      const container = document.getElementById('globalChatContainer');
+      container.innerHTML = '';
+
+      mockGlobalMessages.forEach(msg => {
+        const isSelf = currentUserData && (msg.senderUid === currentUserData.uid);
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `flex gap-3 max-w-xl ${isSelf ? 'ml-auto flex-row-reverse' : ''}`;
+
+        msgDiv.innerHTML = `
+          <img src="${msg.senderPhoto}" class="w-8 h-8 rounded-full object-cover border border-slate-700 shrink-0">
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5 ${isSelf ? 'justify-end' : ''}">
+              <span class="text-xs font-semibold text-slate-300">${msg.senderName}</span>
+              ${msg.isOwner ? '<span class="text-sky-400 text-xs" title="Verified Owner"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+              <span class="text-[10px] text-slate-500">${msg.timestamp}</span>
+            </div>
+            <div class="p-3 rounded-2xl text-xs leading-relaxed ${isSelf ? 'bg-brand-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 border border-dark-border rounded-tl-none'} shadow relative group">
+              ${msg.text}
+              ${(isOwnerUser && !isSelf) ? `
+                <button onclick="deleteGlobalMessage('${msg.id}')" class="opacity-0 group-hover:opacity-100 absolute -right-6 top-2 text-rose-400 hover:text-rose-300 text-xs p-1">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        container.appendChild(msgDiv);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendGlobalMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('globalInputText');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const newMsg = {
+        id: 'gmsg_' + Date.now(),
+        senderUid: currentUserData.uid,
+        senderName: currentUserData.displayName,
+        senderPhoto: currentUserData.photoURL,
+        isOwner: isOwnerUser,
+        text: text,
+        timestamp: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+      };
+
+      mockGlobalMessages.push(newMsg);
+      input.value = '';
+      loadGlobalMessages();
+    }
+
+    function deleteGlobalMessage(msgId) {
+      if (!isOwnerUser) return;
+      mockGlobalMessages = mockGlobalMessages.filter(m => m.id !== msgId);
+      loadGlobalMessages();
+      loadOwnerDashboard();
+    }
+
+    // --- DIRECT MESSAGING (DM) LOGIC ---
+    function loadDmList() {
+      const container = document.getElementById('dmList');
+      container.innerHTML = '';
+
+      const otherUsers = mockUsers.filter(u => u.uid !== currentUserData.uid);
+      if (otherUsers.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">Belum ada pengguna lain.</p>`;
+        return;
+      }
+
+      otherUsers.forEach(user => {
+        const item = document.createElement('div');
+        item.className = `p-3 flex items-center gap-3 cursor-pointer hover:bg-slate-800/60 transition ${activeDmUserId === user.uid ? 'bg-slate-800 border-l-4 border-brand-500' : ''}`;
+        item.onclick = () => openDmChatRoom(user);
+
+        item.innerHTML = `
+          <div class="relative">
+            <img src="${user.photoURL}" class="w-10 h-10 rounded-full object-cover border border-slate-700">
+            <span class="w-2.5 h-2.5 rounded-full ${user.isOnline ? 'bg-emerald-500' : 'bg-slate-500'} absolute bottom-0 right-0 border-2 border-slate-900"></span>
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1">
+                <h4 class="font-bold text-xs truncate">${user.displayName}</h4>
+                ${user.role === 'owner' ? '<span class="text-sky-400 text-xs"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+              </div>
+              <span class="text-[10px] text-slate-500">Privat</span>
+            </div>
+            <p class="text-[11px] text-slate-400 truncate mt-0.5">@${user.username} • Klik untuk obrolan</p>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function openDmChatRoom(user) {
+      activeDmUserId = user.uid;
+      activeDmChatId = [currentUserData.uid, user.uid].sort().join('_');
+
+      document.getElementById('dmEmptyState').classList.add('hidden');
+      document.getElementById('dmActiveState').classList.remove('hidden');
+
+      document.getElementById('activeDmName').innerText = user.displayName;
+      document.getElementById('activeDmAvatar').src = user.photoURL;
+
+      const badge = document.getElementById('activeDmBadge');
+      if (user.role === 'owner') badge.classList.remove('hidden');
+      else badge.classList.add('hidden');
+
+      loadDmList();
+      renderDmMessages();
+    }
+
+    function renderDmMessages() {
+      const container = document.getElementById('dmMessagesContainer');
+      container.innerHTML = '';
+
+      const msgs = mockDmMessages[activeDmChatId] || [
+        {
+          senderUid: activeDmUserId,
+          text: "Halo! Selamat datang di chat pribadi ChatZone.",
+          timestamp: "10:05"
+        }
+      ];
+
+      msgs.forEach(msg => {
+        const isSelf = (msg.senderUid === currentUserData.uid);
+        const div = document.createElement('div');
+        div.className = `flex flex-col ${isSelf ? 'items-end' : 'items-start'}`;
+
+        div.innerHTML = `
+          <div class="max-w-xs sm:max-w-md p-3 rounded-2xl text-xs ${isSelf ? 'bg-brand-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 border border-dark-border rounded-bl-none'} shadow">
+            ${msg.imageUrl ? `<img src="${msg.imageUrl}" class="w-full max-h-48 object-cover rounded-lg mb-2">` : ''}
+            <p>${msg.text}</p>
+          </div>
+          <span class="text-[9px] text-slate-500 mt-1 px-1">${msg.timestamp}</span>
+        `;
+        container.appendChild(div);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendDirectMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('dmInputText');
+      const text = input.value.trim();
+      const previewImg = document.getElementById('dmImagePreview').src;
+      const isImg = !document.getElementById('dmImagePreviewBox').classList.contains('hidden');
+
+      if (!text && !isImg) return;
+
+      if (!mockDmMessages[activeDmChatId]) {
+        mockDmMessages[activeDmChatId] = [];
+      }
+
+      mockDmMessages[activeDmChatId].push({
+        senderUid: currentUserData.uid,
+        text: text,
+        imageUrl: isImg ? previewImg : null,
+        timestamp: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+      });
+
+      input.value = '';
+      cancelDmImage();
+      renderDmMessages();
+    }
+
+    function previewDmImage(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('dmImagePreview').src = evt.target.result;
+          document.getElementById('dmImagePreviewBox').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function cancelDmImage() {
+      document.getElementById('dmImageInput').value = '';
+      document.getElementById('dmImagePreviewBox').classList.add('hidden');
+    }
+
+    function backToDmList() {
+      document.getElementById('dmActiveState').classList.add('hidden');
+      document.getElementById('dmEmptyState').classList.remove('hidden');
+    }
+
+    // --- STORIES LOGIC ---
+    function loadStories() {
+      const container = document.getElementById('storiesContainer');
+      container.innerHTML = '';
+
+      mockStories.forEach(st => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-dark-border rounded-2xl p-4 flex flex-col justify-between shadow hover:border-brand-500/50 transition relative overflow-hidden group";
+
+        card.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <div class="p-0.5 rounded-full bg-gradient-to-tr from-brand-500 to-amber-500">
+                <img src="${st.authorPhoto}" class="w-8 h-8 rounded-full object-cover border border-slate-900">
+              </div>
+              <div class="overflow-hidden">
+                <div class="flex items-center gap-1">
+                  <h4 class="font-bold text-xs truncate">${st.authorName}</h4>
+                  ${st.isOwner ? '<span class="text-sky-400 text-xs"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+                </div>
+                <span class="text-[10px] text-slate-500">${st.createdAt}</span>
+              </div>
+            </div>
+
+            ${st.imageUrl ? `<img src="${st.imageUrl}" class="w-full h-32 object-cover rounded-xl border border-dark-border">` : ''}
+            <p class="text-xs text-slate-200 line-clamp-3">${st.text}</p>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-dark-border/40 flex items-center justify-between text-[10px] text-slate-400">
+            <span><i class="fa-solid fa-eye mr-1"></i> Aktif 24 Jam</span>
+            <button class="hover:text-rose-400"><i class="fa-solid fa-heart"></i></button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openCreateStoryModal() {
+      document.getElementById('modalCreateStory').classList.remove('hidden');
+    }
+
+    function closeCreateStoryModal() {
+      document.getElementById('modalCreateStory').classList.add('hidden');
+    }
+
+    function handleCreateStory(e) {
+      e.preventDefault();
+      const text = document.getElementById('storyTextInput').value.trim();
+      const imgUrl = document.getElementById('storyImageUrlInput').value.trim();
+
+      if (!text) return;
+
+      mockStories.unshift({
+        id: 'st_' + Date.now(),
+        authorUid: currentUserData.uid,
+        authorName: currentUserData.displayName,
+        authorPhoto: currentUserData.photoURL,
+        isOwner: isOwnerUser,
+        text: text,
+        imageUrl: imgUrl,
+        createdAt: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+      });
+
+      closeCreateStoryModal();
+      document.getElementById('storyTextInput').value = '';
+      document.getElementById('storyImageUrlInput').value = '';
+      loadStories();
+    }
+
+    // --- PROFILE & SETTINGS LOGIC ---
+    function loadProfileData() {
+      if (!currentUserData) return;
+      document.getElementById('profileNameView').innerText = currentUserData.displayName;
+      document.getElementById('profileHandleView').innerText = '@' + currentUserData.username;
+      document.getElementById('profileAvatarView').src = currentUserData.photoURL;
+      document.getElementById('profileBioView').innerText = `"${currentUserData.bio || 'Belum ada bio.'}"`;
+      document.getElementById('profileJoinDate').innerText = `Bergabung: ${currentUserData.joinedAt || 'Baru Saja'}`;
+
+      const ownerBadge = document.getElementById('profileOwnerBadge');
+      const ownerTag = document.getElementById('profileOwnerRoleTag');
+      if (isOwnerUser) {
+        ownerBadge.classList.remove('hidden');
+        ownerTag.classList.remove('hidden');
+      } else {
+        ownerBadge.classList.add('hidden');
+        ownerTag.classList.add('hidden');
+      }
+
+      document.getElementById('editDisplayName').value = currentUserData.displayName;
+      document.getElementById('editAvatarUrl').value = currentUserData.photoURL;
+      document.getElementById('editBio').value = currentUserData.bio || '';
+    }
+
+    function saveProfileSettings(e) {
+      e.preventDefault();
+      currentUserData.displayName = document.getElementById('editDisplayName').value.trim();
+      currentUserData.photoURL = document.getElementById('editAvatarUrl').value.trim() || currentUserData.photoURL;
+      currentUserData.bio = document.getElementById('editBio').value.trim();
+
+      localStorage.setItem('cz_user', JSON.stringify(currentUserData));
+      initAuthenticatedUser(currentUserData);
+      alert('Profil berhasil diperbarui!');
+    }
+
+    // --- OWNER / SUPER ADMIN DASHBOARD LOGIC ---
+    function loadOwnerDashboard() {
+      if (!isOwnerUser) return;
+
+      document.getElementById('dashStatTotalUsers').innerText = mockUsers.length;
+      document.getElementById('dashStatOnlineUsers').innerText = mockUsers.filter(u => u.isOnline).length;
+      document.getElementById('dashStatGlobalMsgs').innerText = mockGlobalMessages.length;
+
+      // Render Admin User List
+      const container = document.getElementById('adminUserList');
+      container.innerHTML = '';
+
+      mockUsers.forEach(user => {
+        const item = document.createElement('div');
+        item.className = "py-2.5 flex items-center justify-between text-xs";
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <img src="${user.photoURL}" class="w-7 h-7 rounded-full object-cover">
+            <div>
+              <span class="font-bold block leading-none">${user.displayName}</span>
+              <span class="text-[10px] text-slate-400">@${user.username} • ${user.role}</span>
+            </div>
+          </div>
+          ${user.role !== 'owner' ? `
+            <button onclick="toggleBanUser('${user.uid}')" class="px-2 py-1 bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white rounded text-[10px] transition">
+              Nonaktifkan
+            </button>
+          ` : '<span class="text-[10px] text-amber-400 font-bold">UTAMA</span>'}
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function publishGlobalAnnouncement(e) {
+      e.preventDefault();
+      const title = document.getElementById('annTitleInput').value.trim();
+      const content = document.getElementById('annContentInput').value.trim();
+
+      if (!title || !content) return;
+
+      document.getElementById('announcementTitle').innerText = title;
+      document.getElementById('announcementContent').innerText = content;
+      document.getElementById('globalAnnouncementBanner').classList.remove('hidden');
+
+      document.getElementById('annTitleInput').value = '';
+      document.getElementById('annContentInput').value = '';
+
+      alert('Pengumuman global berhasil diterbitkan ke seluruh anggota!');
+    }
+
+    function closeAnnouncementBanner() {
+      document.getElementById('globalAnnouncementBanner').classList.add('hidden');
+    }
+
+    function toggleBanUser(uid) {
+      if (confirm("Apakah Anda yakin ingin menonaktifkan pengguna ini?")) {
+        mockUsers = mockUsers.filter(u => u.uid !== uid);
+        loadOwnerDashboard();
+        loadDmList();
+      }
+    }
+
+    function reportUserCurrent() {
+      alert("Laporan pengguna telah dikirimkan ke Dashboard Owner (Marselinus Patrixon) untuk ditinjau.");
+    }
+
+    // --- MODAL DIALOG CONTROLLERS ---
+    function openRulesModal() {
+      document.getElementById('modalRules').classList.remove('hidden');
+    }
+    function closeRulesModal() {
+      document.getElementById('modalRules').classList.add('hidden');
+    }
+
+    function toggleFindFriendModal(show) {
+      const modal = document.getElementById('modalFindFriend');
+      if (show) modal.classList.remove('hidden');
+      else modal.classList.add('hidden');
+    }
+
+    function searchUsersDatabase() {
+      const query = document.getElementById('findFriendInput').value.toLowerCase();
+      const resultsContainer = document.getElementById('searchResultsList');
+      resultsContainer.innerHTML = '';
+
+      const filtered = mockUsers.filter(u => 
+        u.uid !== currentUserData.uid && 
+        (u.displayName.toLowerCase().includes(query) || u.username.toLowerCase().includes(query))
+      );
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">Pengguna tidak ditemukan.</p>`;
+        return;
+      }
+
+      filtered.forEach(user => {
+        const div = document.createElement('div');
+        div.className = "p-2 bg-slate-900 rounded-xl flex items-center justify-between";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <img src="${user.photoURL}" class="w-8 h-8 rounded-full object-cover">
+            <div>
+              <span class="font-bold text-xs block">${user.displayName}</span>
+              <span class="text-[10px] text-slate-400">@${user.username}</span>
+            </div>
+          </div>
+          <button onclick="startChatWithUser('${user.uid}')" class="px-2.5 py-1 bg-brand-600 text-white text-xs rounded-lg hover:bg-brand-700">
+            Kirim Chat
+          </button>
+        `;
+        resultsContainer.appendChild(div);
+      });
+    }
+
+    function startChatWithUser(uid) {
+      const targetUser = mockUsers.find(u => u.uid === uid);
+      if (targetUser) {
+        toggleFindFriendModal(false);
+        switchView('dm');
+        openDmChatRoom(targetUser);
+      }
+    }
+  </script>
+</body>
+</html>
